@@ -1,0 +1,60 @@
+{
+	"items":[
+
+		{ "id":"onboarding_0", "type":"mission", "group":"onboarding", "stack":1
+        },
+		{ "id":"onboarding_1", "type":"mission", "group":"onboarding", "stack":1,
+		  "requirement":{ "onboarding_0":1 },
+		  "costs":{ "iron_ingot":10 }
+        },
+
+		{ "id":"energy", "type":"energy", "group":"energy",
+		  "requirement":{ "onboarding_0":1 }
+		},
+
+		{ "id":"iron", "type":"item", "group":"iron", "stack":100,
+		  "requirement":{ "onboarding_0":1 },
+		  "gain":true
+		},
+		{ "id":"iron_ingot", "type":"item", "group":"iron", "stack":100,
+		  "requirement":{ "onboarding_0":1 }
+		},
+
+		{ "id":"copper", "type":"item", "group":"copper", "stack":100,
+		  "requirement":{ "onboarding_0":1 },
+		  "gain":true
+		},
+
+		{ "id":"generator_0", "type":"machine", "group":"machine",
+		  "requirement":{ "onboarding_0":1 },
+		  "gain":true, "costs":{ "iron":10, "copper":10 },
+		  "coeff":1
+		},
+		{ "id":"miner_0", "type":"machine", "group":"machine",
+		  "requirement":{ "onboarding_0":1 },
+		  "gain":true, "costs":{ "iron":10, "copper":10 },
+		  "coeff":1, "energy":{ "energy":5 }
+		},
+		{ "id":"smelter_0", "type":"machine", "group":"machine",
+		  "requirement":{ "onboarding_0":1 },
+		  "gain":true, "costs":{ "iron":10, "copper":10 },
+		  "coeff":1, "energy":{ "energy":5 }
+		}
+	],
+
+	"recipes":[
+
+		{ "id":"energy", "group":"energy",
+		  "outputs":{ "energy":5 }, "seconds":1,
+		  "machines":[ "generator_0" ]
+		},
+		{ "id":"iron", "group":"extraction",
+		  "outputs":{ "iron":1 }, "seconds":1,
+		  "machines":[ "miner_0" ]
+		},
+		{ "id":"iron_ingot", "group":"transformed",
+		  "outputs":{ "iron_ingot":1 }, "seconds":1, "inputs":{ "iron":0.5 },
+		  "machines":[ "smelter_0" ]
+		}
+	]
+}

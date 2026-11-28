@@ -1,0 +1,67 @@
+{
+	"gameName": "Civ Factory",
+
+	"loading":{
+		"text": "Loading...",
+		"error": "Cannot load local data",
+		"error_button": "Wipe Local Data"
+	},
+
+	"tabs":{
+		"building": "Building",
+		"inventory": "Inventory",
+		"production": "Production",
+		"progression": "Missions",
+		"storage": "Storage"
+	},
+
+	"lang_en": "English",
+
+	"options":{
+		"title": "Options",
+		"language": "Language",
+		"options": "Options",
+		"game_name_placeholder": "Enter a name for your factory",
+		"local_storage": "Local data",
+		"wipe": "Wipe local data",
+		"wipe_confirm": "Are you sure you want to wipe your local data?",
+		"confirm": "Confirm",
+		"export": "Copy to clipboard",
+		"export_success": "Copied to clipboard",
+		"export_error": "Failed to copy to clipboard",
+		"import_title": "Import data",
+		"import": "Import your save",
+		"import_placeholder": "Paste your save here",
+		"import_error": "Failed to import your save",
+		"import_success": "Save imported successfully"
+	},
+
+	"scenario_satisfactory": "Big Company",
+
+	"scenarios":{
+		"title": "Scenarios",
+		"current": "Current Scenario",
+		"available": "Available Scenarios",
+		"reset": "Restart",
+		"reset_confirm": "Are you sure you want to reset the current scenario?",
+		"confirm": "Confirm",
+		"resume": "Resume",
+		"pause": "Pause",
+		"victories": "Victories",
+		"no_victory": "No victory for the moment"
+	},
+
+	"victory":{
+		"title": "Victory",
+		"message": "You have completed the scenario! You can continue to play in infinite mode or choose another scenario to play.",
+		"close": "Close"
+	},
+
+	"labels":{
+		"noContent": "No entry for the moment. You have to complete some missions first ;)",
+		"objectives": "Objectives",
+		"complete": "Complete",
+		"noCost": "No cost",
+		"noInput": "No input"
+	}
+}

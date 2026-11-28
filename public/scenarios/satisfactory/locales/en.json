@@ -1,0 +1,37 @@
+{
+	"groups": {
+
+        "onboarding": "Installation",
+
+		"energy": "Energy",
+		"iron": "Iron Production",
+		"copper": "Copper Production",
+		"machine": "Machines",
+
+		"extraction": "Extraction",
+		"transformed": "Transformed"
+	},
+
+	"desc":{
+
+		"onboarding_0": "Crash-landed on an alien world with nothing but a massive student debt to the ruthless megacorporation \"Big Company\", your mission is to pave over this paradise. You will mine ores and automate production lines so complex they make your brain hurt. To meet absurdly escalating corporate quotas, you must finalize the project and ship off millions of useless widgets to achieve your ultimate dream: winning the coveted \"Employee of the Month\" plaque.",
+		"onboarding_1": ""
+	},
+
+	"items": {
+
+		"onboarding_0": "Start Here",
+		"onboarding_1": "Step #1",
+
+		"energy": "Energy",
+
+		"iron": "Iron",
+		"iron_ingot": "Iron Ingot",
+
+		"copper": "Copper",
+
+		"generator_0": "Generator Mk.0",
+		"miner_0": "Miner Mk.0",
+		"smelter_0": "Smelter Mk.0"
+	}
+}
