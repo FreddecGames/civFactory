@@ -72,37 +72,6 @@
 		}
     })
 
-	// Navigation
-
-	const route = useRoute()
-
-	const activeTab = computed(() => {
-
-		const pathSegments = route.path.split('/').filter(Boolean)
-		const currentPage = pathSegments[pathSegments.length - 1]
-
-		return currentPage === 'progression' || currentPage === 'inventory' || currentPage === 'building' || currentPage === 'production' || currentPage === 'storage'
-			? currentPage
-			: 'progression'
-	})
-
-	const tabs = [
-
-		{ label:$t('tabs.progression'), value:'progression', icon:'i-lucide-target' },
-		{ label:$t('tabs.inventory'), value:'inventory', icon:'i-lucide-list' },
-		{ label:$t('tabs.building'), value:'building', icon:'i-lucide-hand' },
-		{ label:$t('tabs.production'), value:'production', icon:'i-lucide-trending-up' },
-		{ label:$t('tabs.storage'), value:'storage', icon:'i-lucide-package' },
-	]
-
-	const localePath = useLocalePath()
-
-	const navigateToTab = (tab: string) => {
-
-		const path = tab === 'progression' ? '/' : `/${tab}`
-		return navigateTo(localePath(path))
-	}
-
 	// Translations
 
 	const { locale, getLocaleMessage, setLocaleMessage } = useI18n()
@@ -342,10 +311,6 @@
 						</div>
 
 					</header>
-
-					<UTabs :model-value="activeTab" :items="tabs" size="sm"
-						@update:model-value="navigateToTab"
-						variant="link" :ui="{ list: 'justify-center' }" />
 
 				</UContainer>
 			</div>

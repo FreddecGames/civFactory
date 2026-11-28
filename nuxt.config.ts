@@ -24,7 +24,7 @@ export default defineNuxtConfig({
 	},
 
 	routeRules: {
-		'/': { redirect: { to: '/progression', statusCode: 301 } }
+		'/': { redirect: { to: '/mission', statusCode: 301 } }
 	},
 
 	i18n: {

@@ -48,6 +48,7 @@ interface Manual {
 	id: string
 	inputs?: { id: string, count: number }[]
 	outputs: { id: string, count: number }[]
+	seconds: number
 	isProcessing: boolean
 	processCount: number
 	remainingSeconds: number
@@ -278,11 +279,15 @@ export const useGameStore = defineStore('game', {
 				this.currentScenarioId = decryptedLocalData.currentScenarioId
 
 			if (!AVAILABLE_SCENARIOS.some(s => s.id === this.currentScenarioId))
-				this.currentScenarioId = AVAILABLE_SCENARIOS[0]?.id
+				this.currentScenarioId = AVAILABLE_SCENARIOS[0]?.id ?? null
 			
-			const [scenarioData] = await Promise.all([
-				fetch(`/civfactory/scenarios/${this.currentScenarioId}/data.json`).then(response => response.json())
-			])
+			const scenarioResponse = await fetch(`/civfactory/scenarios/${this.currentScenarioId}/data.json`)
+			if (!scenarioResponse.ok)
+				throw new Error(`Failed to load scenario data: ${scenarioResponse.status} ${scenarioResponse.statusText}`)
+
+			const scenarioData = await scenarioResponse.json()
+			if (!scenarioData || !Array.isArray(scenarioData.items) || !Array.isArray(scenarioData.recipes))
+				throw new Error(`Invalid scenario data: ${this.currentScenarioId}`)
 
 			// Win conditions
 
@@ -295,8 +300,9 @@ export const useGameStore = defineStore('game', {
 
 			scenarioData.items.forEach((itemData: any) => {
 
-				let itemReqs: { id: string, count: number }[] | undefined = undefined
-				if (itemData.reqs) itemReqs = Object.entries(itemData.reqs).map(([id, count]) => ({ id, count }))
+				const itemReqs = itemData.reqs
+					? Object.entries(itemData.reqs).map(([id, count]) => ({ id, count: Number(count) }))
+					: undefined
 
 				const newItem: Item = {
 
@@ -326,7 +332,7 @@ export const useGameStore = defineStore('game', {
 						const newStorage: Storage = {
 
 							id: `${itemData.id}_${storerId}`,
-							slots: storerData.slots,
+							slots: Number(storerData.slots) || 0,
 							itemId: itemData.id,
 							storerId: storerId,
 							assignedCount: 0,
@@ -350,16 +356,19 @@ export const useGameStore = defineStore('game', {
 
 					if (machineId === 'manual') {
 
-						const manualOutputs = Object.entries(recipeData.outputs).map(([id, count]) => ({ id, count }))
+						const manualOutputs = Object.entries(recipeData.outputs).map(([id, count]) =>
+							({ id, count: Number(count) }))
 
 						let manualInputs: { id: string, count: number }[] | undefined = undefined
-						if (recipeData.inputs) manualInputs = Object.entries(recipeData.inputs).map(([id, count]) => ({ id, count }))
+						if (recipeData.inputs) manualInputs = Object.entries(recipeData.inputs).map(([id, count]) =>
+							({ id, count: Number(count) }))
 
 						const newManual: Manual = {
 
 							id: `${recipeData.id}_manual`,
 							inputs: manualInputs,
 							outputs: manualOutputs,
+							seconds: Number(recipeData.seconds) || 0,
 							isProcessing: false,
 							processCount: 0,
 							remainingSeconds: 0,
@@ -369,19 +378,28 @@ export const useGameStore = defineStore('game', {
 					}
 					else {
 
-						const machineData = scenarioData.items.find(candidate => candidate.id === machineId)
+						const machineData = scenarioData.items.find((candidate: any) => candidate.id === machineId)
 
-						const prodOutputs = Object.entries(recipeData.outputs).map(([id, count]) => ({ id, count }))
+						const coeff = Number(machineData.coeff) || 1
+						const seconds = Number(recipeData.seconds) || 0
+
+						const prodOutputs = Object.entries(recipeData.outputs).map(([id, count]) =>
+							({ id, count: Number(count) * coeff / seconds }))
 
 						const prodInputs = [
-							...(recipeData.inputs ? Object.entries(recipeData.inputs).map(([id, count]) => ({ id, count:count * machineData.coeff / recipeData.seconds })) : []),
-							...(machineData.energy ? Object.entries(machineData.energy).map(([id, count]) => ({ id, count })) : []),
+							...(recipeData.inputs
+								? Object.entries(recipeData.inputs).map(([id, count]) =>
+									({ id, count: Number(count) * coeff / seconds }))
+								: []),
+							...(machineData.energy
+								? Object.entries(machineData.energy).map(([id, count]) => ({ id, count: Number(count) }))
+								: []),
 						]
 
 						const newProd: Prod = {
 
 							id: `${recipeData.id}_${machineId}`,
-							inputs: prodInputs.length > 0 ? prodInputs : null,
+							inputs: prodInputs.length > 0 ? prodInputs : undefined,
 							outputs: prodOutputs,
 							machineId: machineId,
 							assignedCount: 0,
@@ -399,8 +417,10 @@ export const useGameStore = defineStore('game', {
 				if (decryptedLocalData.lastSaveDate !== undefined) this.lastSaveDate = decryptedLocalData.lastSaveDate
 				if (decryptedLocalData.customGameName !== undefined) this.customGameName = decryptedLocalData.customGameName
 
+				this.victories = []
+
 				if (decryptedLocalData.victories && decryptedLocalData.victories.length > 0) {
-					decryptedLocalData.victories.forEach(victory => {
+					decryptedLocalData.victories.forEach((victory: any) => {
 						this.victories.push({
 							date: victory.date,
 							scenarioId: victory.scenarioId,
@@ -454,9 +474,25 @@ export const useGameStore = defineStore('game', {
 					})
 				}
 
+				this.unlockedProdIds = []
+				this.unlockedManualIds = []
+				this.unlockedStorageIds = []
+
 				if (Array.isArray(decryptedLocalData.unlockedItemIds)) {
 					this.unlockedItemIds = decryptedLocalData.unlockedItemIds.filter((id: unknown): id is string =>
 						typeof id === 'string' && Boolean(this.itemMap[id]))
+				}
+				if (Array.isArray(decryptedLocalData.unlockedProdIds)) {
+					this.unlockedProdIds = decryptedLocalData.unlockedProdIds.filter((id: unknown): id is string =>
+						typeof id === 'string' && this.prods.some(prod => prod.id === id))
+				}
+				if (Array.isArray(decryptedLocalData.unlockedManualIds)) {
+					this.unlockedManualIds = decryptedLocalData.unlockedManualIds.filter((id: unknown): id is string =>
+						typeof id === 'string' && this.manuals.some(manual => manual.id === id))
+				}
+				if (Array.isArray(decryptedLocalData.unlockedStorageIds)) {
+					this.unlockedStorageIds = decryptedLocalData.unlockedStorageIds.filter((id: unknown): id is string =>
+						typeof id === 'string' && this.storages.some(storage => storage.id === id))
 				}
 			}
 
@@ -492,6 +528,8 @@ export const useGameStore = defineStore('game', {
 				this.processGameTick(currentTick)
 				offlineSeconds -= currentTick
 			}
+
+			this.lastSaveDate = now
 		},
 
 		processGameTick(deltaSeconds: number) {
@@ -508,10 +546,11 @@ export const useGameStore = defineStore('game', {
 				if (manual.remainingSeconds <= 0) {
 
 					for (const output of manual.outputs) {
-
 						const outputItem = this.itemMap[output.id]
-						outputItem.count += output.count * manual.processCount
-						if (outputItem.count > outputItem.max) outputItem.count = outputItem.max
+						outputItem.count = Math.min(
+							outputItem.count + output.count * manual.processCount,
+							this.maxCapacities[outputItem.id] ?? outputItem.stack,
+						)
 					}
 
 					manual.isProcessing = false
@@ -525,10 +564,14 @@ export const useGameStore = defineStore('game', {
 
 			// Prods
 
-			this.items.filter(candidate => this.prodRates[candidate.id] > 0 && candidate.count < this.maxCapacities[candidate.id]).forEach(item => {
+			this.items.forEach(item => {
 
-				item.count += this.prodRates[item.id] * deltaSeconds
-				if (item.count > this.maxCapacities[item.id]) item.count = this.maxCapacities[item.id]
+				const rate = this.prodRates[item.id]
+				item.count += rate * deltaSeconds
+
+				const maximum = this.maxCapacities[item.id] ?? item.stack
+				if (item.count > maximum) item.count = maximum
+				if (item.count < 0) item.count = 0
 			})
 
 			// Victory
@@ -591,7 +634,7 @@ export const useGameStore = defineStore('game', {
 				this.victories.push({
 
 					date: new Date().toLocaleString(),
-					scenarioId: this.currentScenarioId,
+					scenarioId: this.currentScenarioId ?? AVAILABLE_SCENARIOS[0]?.id ?? 'unknown',
 					totalPlayTime: this.totalPlayTime,
 				})
 			}
@@ -602,20 +645,17 @@ export const useGameStore = defineStore('game', {
 			const rates: Record<string, number> = {}
 
 			for (const prod of this.prods) {
-
-				if (prod.assignedCount < 1)
-					continue
+				
+				if (prod.assignedCount < 1) continue
 
 				if (prod.inputs) {
 					for (const input of prod.inputs) {
-						if (!rates[input.id]) rates[input.id] = -input.count * prod.assignedCount
-						rates[input.id] -= input.count * prod.assignedCount
+						rates[input.id] = (rates[input.id] ?? 0) - input.count * prod.assignedCount
 					}
 				}
 
 				for (const output of prod.outputs) {
-					if (!rates[output.id]) rates[output.id] = output.count * prod.assignedCount
-					rates[output.id] += output.count * prod.assignedCount
+					rates[output.id] = (rates[output.id] ?? 0) + output.count * prod.assignedCount
 				}
 			}
 
@@ -630,11 +670,8 @@ export const useGameStore = defineStore('game', {
 				maxs[item.id] = item.stack
 
 			for (const storage of this.storages) {
-
-				if (storage.assignedCount < 1)
-					continue
-
-				maxs[storage.itemId] += storage.max * storage.assignedCount
+				if (storage.assignedCount < 1) continue
+				maxs[storage.itemId] = (maxs[storage.itemId] ?? 0) + storage.max * storage.assignedCount
 			}
 
 			this.maxCapacities = maxs
@@ -644,13 +681,18 @@ export const useGameStore = defineStore('game', {
 
 			const counts: Record<string, number> = {}
 
-			for (const prod of this.prods) {
+			for (const item of this.items) {
+				if (item.type === 'machine' || item.type === 'storer')
+					counts[item.id] = item.count
+			}
 
+			for (const prod of this.prods) {
+				
 				if (prod.assignedCount < 1)
 					continue
 
-				if (!counts[prod.machineId]) counts[prod.machineId] = this.itemMap[prod.machineId].count
-				counts[prod.machineId] -= prod.assignedCount
+				if (counts[prod.machineId] === undefined) counts[prod.machineId] = this.itemMap[prod.machineId]?.count ?? 0
+				counts[prod.machineId] = (counts[prod.machineId] ?? 0) - prod.assignedCount
 			}
 
 			for (const storage of this.storages) {
@@ -658,8 +700,8 @@ export const useGameStore = defineStore('game', {
 				if (storage.assignedCount < 1)
 					continue
 
-				if (!counts[storage.storerId]) counts[storage.storerId] = this.itemMap[storage.storerId].count
-				counts[storage.storerId] -= storage.assignedCount
+				if (counts[storage.storerId] === undefined) counts[storage.storerId] = this.itemMap[storage.storerId]?.count ?? 0
+				counts[storage.storerId] = (counts[storage.storerId] ?? 0) - storage.assignedCount
 			}
 
 			this.availableCounts = counts
@@ -679,7 +721,8 @@ export const useGameStore = defineStore('game', {
 
 				if (item.reqs) {
 					item.reqs.forEach(req => {
-						if (this.itemMap[req.id].count < req.count) {
+						const requiredItem = this.itemMap[req.id]
+						if (!requiredItem || requiredItem.count < req.count) {
 							requirementsMet = false
 							return
 						}
@@ -799,15 +842,15 @@ export const useGameStore = defineStore('game', {
 
 			if (prod.inputs) {
 				for (const input of prod.inputs) {
-					if (this.prodRates[input.id] < input.count * count)
-						return -2
+					const netRate = this.prodRates[input.id] ?? 0
+					if (netRate - input.count * count < -0.000001) return -2
 				}
 			}
 
 			return 0
 		},
 
-		assignProdMachine(prod: Prod, count: number): void {
+		assignProdMachine(prod: Prod, count: number = 1): void {
 
 			if (this.canAssignProdMachine(prod, count) !== 0) return
 
@@ -817,19 +860,20 @@ export const useGameStore = defineStore('game', {
 			this.updateProdRates()
 		},
 
-		canUnassignProdMachine(prod: Prod, count: number): number {
-
+		canUnassignProdMachine(prod: Prod, count: number = 1): number {
+			
+			if (!Number.isFinite(count) || count < 1) return -1
 			if (prod.assignedCount < count) return -1
 
 			for (const output of prod.outputs) {
-				if (this.prodRates[output.id] < output.count * count)
+				if ((this.prodRates[output.id] ?? 0) - output.count * count < -0.000001)
 					return -2
 			}
 
 			return 0
 		},
 
-		unassignProdMachine(prod: Prod, count: number): void {
+		unassignProdMachine(prod: Prod, count: number = 1): void {
 
 			if (this.canUnassignProdMachine(prod, count) !== 0) return
 
@@ -841,28 +885,35 @@ export const useGameStore = defineStore('game', {
 
 		// Manual actions
 
-		canManualStart(manual: Manual, count: number): number {
+		canManualStart(manual: Manual, count: number = 1): number {
+
+			if (manual.isProcessing) return -3
+			if (!Number.isFinite(count) || count < 1) return -1
 
 			for (const output of manual.outputs) {
-				if (this.itemMap[output.id].count + (output.count * count) > this.maxCapacities[output.id]) return -1
+				const outputItem = this.itemMap[output.id]
+				if (!outputItem || outputItem.count + (output.count * count) >
+					(this.maxCapacities[output.id] ?? outputItem.stack)) return -1
 			}
 
 			if (manual.inputs) {
 				for (const input of manual.inputs) {
-					if (this.itemMap[input.id].count < input.count * count) return -2
+					const inputItem = this.itemMap[input.id]
+					if (!inputItem || inputItem.count < input.count * count) return -2
 				}
 			}
 
 			return 0
 		},
 
-		manualStart(manual: Manual, count: number) {
+		manualStart(manual: Manual, count: number = 1) {
 
 			if (this.canManualStart(manual, count) !== 0) return
 
 			if (manual.inputs) {
 				for (const input of manual.inputs) {
-					this.itemMap[input.id].count -= input.count * count
+					const inputItem = this.itemMap[input.id]
+					if (inputItem) inputItem.count -= input.count * count
 				}
 			}
 
@@ -884,7 +935,8 @@ export const useGameStore = defineStore('game', {
 
 			if (manual.inputs) {
 				for (const input of manual.inputs) {
-					this.itemMap[input.id].count += input.count * manual.processCount
+					const inputItem = this.itemMap[input.id]
+					if (inputItem) inputItem.count += input.count * manual.processCount
 				}
 			}
 
@@ -895,14 +947,15 @@ export const useGameStore = defineStore('game', {
 
 		// Storage actions
 
-		canAssignStorageStorer(storage: Storage, count: number): number {
+		canAssignStorageStorer(storage: Storage, count: number = 1): number {
 
-			if (this.availableCounts[storage.storerId] < 1) return -1
+			if (!Number.isFinite(count) || count < 1) return -1
+			if ((this.availableCounts[storage.storerId] ?? 0) < count) return -1
 
 			return 0
 		},
 
-		assignStorageStorer(storage: Storage, count: number): void {
+		assignStorageStorer(storage: Storage, count: number = 1): void {
 
 			if (this.canAssignStorageStorer(storage, count) !== 0) return
 
@@ -912,17 +965,18 @@ export const useGameStore = defineStore('game', {
 			this.updateMaxCapacities()
 		},
 
-		canUnassignStorageStorer(storage: Storage, count: number): number {
+		canUnassignStorageStorer(storage: Storage, count: number = 1): number {
 
+			if (!Number.isFinite(count) || count < 1) return -1
 			if (storage.assignedCount < count) return -1
 
-			if (this.maxCapacities[storage.itemId] - storage.max < this.itemMap[storage.itemId].count * count)
-				return -2
+			const remainingCapacity = (this.maxCapacities[storage.itemId] ?? storage.slots) - storage.max * count
+			if (remainingCapacity < (this.itemMap[storage.itemId]?.count ?? 0)) return -2
 
 			return 0
 		},
 
-		unassignStorageStorer(storage: Storage, count: number): void {
+		unassignStorageStorer(storage: Storage, count: number = 1): void {
 
 			if (this.canUnassignStorageStorer(storage, count) !== 0) return
 

@@ -7,14 +7,6 @@
 		"error_button": "Wipe Local Data"
 	},
 
-	"tabs":{
-		"building": "Building",
-		"inventory": "Inventory",
-		"production": "Production",
-		"progression": "Missions",
-		"storage": "Storage"
-	},
-
 	"lang_en": "English",
 
 	"options":{
